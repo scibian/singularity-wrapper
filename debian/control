@@ -1,10 +1,12 @@
 Source: singularity-wrapper
 Priority: optional
-Maintainer: Thomas Hamel <thomas-externe.hamel@edf.fr>
+Maintainer: Scibian Project <packaging@scibian.org>
 Build-Depends:
  debhelper (>= 9)
 Standards-Version: 3.9.6
 Section: admin
+Vcs-Git: https://github.com/scibian/singularity-wrapper.git
+Vcs-Browser: https://github.com/scibian/singularity-wrapper
 
 Package: singularity-wrapper
 Architecture: all

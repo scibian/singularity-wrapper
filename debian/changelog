@@ -1,3 +1,9 @@
+singularity-wrapper (1.1sci9u1) scibian9; urgency=medium
+
+  * scibian9 release
+
+ -- Nicolas Meaux <nicolas-externe.meaux@edf.fr>  Wed, 01 Aug 2018 14:53:43 +0200
+
 singularity-wrapper (1.1) calibre9; urgency=medium
 
   * usr bin wrapper script: Add support for VirtualGL
