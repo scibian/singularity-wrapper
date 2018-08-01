@@ -1,0 +1,3 @@
+/etc/singularity-wrapper/config.ini
+/etc/singularity-wrapper/recipes/files_common/sshwrapper
+/etc/singularity-wrapper/recipes/scibian9.def.tpl

@@ -1,0 +1,30 @@
+singularity-wrapper (1.1) calibre9; urgency=medium
+
+  * usr bin wrapper script: Add support for VirtualGL
+  * Support multiple distributions
+  * bump script version to 1.1
+
+ -- Thomas HAMEL <thomas-externe.hamel@edf.fr>  Fri, 08 Dec 2017 17:52:11 +0100
+
+singularity-wrapper (1.0) calibre9; urgency=medium
+
+  * wrapper: Don't display errors from glxinfo
+  * image-build: Don't remove the old image until the new is ready
+  * wrapper-create: Add support for downloading package from repo
+  * repo-query: Add action to list package in repos
+  * global: Configure the ca cert bundle
+  * Global: HTTP(s) errors throws an exception
+  * Add copyright headers
+  * wrapper-create: fix package selection
+  * wrapper-create: build the image when installing the package
+  * sample config: Fix a typo in repository name
+  * recipe: Fix sshwrapper permissions inside the image
+  * debian: Remove files file
+
+ -- Thomas HAMEL <thomas-externe.hamel@edf.fr>  Mon, 27 Nov 2017 11:57:17 +0100
+
+singularity-wrapper (0.1) calibre9; urgency=low
+
+  * Initial release
+
+ -- Thomas HAMEL <thomas-externe.hamel@edf.fr>  Mon, 6 Nov 2017 17:34:12 +0100

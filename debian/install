@@ -1,0 +1,13 @@
+conf/config.ini                               etc/singularity-wrapper
+conf/recipes/scibian9.def.tpl                 etc/singularity-wrapper/recipes
+conf/recipes/files_common/sshwrapper          etc/singularity-wrapper/recipes/files_common
+singularity-wrapper                           usr/sbin
+wrapper-source/files/debian/compat            usr/share/singularity-wrapper/source/files/debian
+wrapper-source/files/debian/rules             usr/share/singularity-wrapper/source/files/debian
+wrapper-source/files/debian/source/format     usr/share/singularity-wrapper/source/files/debian/source
+wrapper-source/templates/debian/changelog.tpl usr/share/singularity-wrapper/source/templates/debian
+wrapper-source/templates/debian/control.tpl   usr/share/singularity-wrapper/source/templates/debian
+wrapper-source/templates/debian/copyright.tpl usr/share/singularity-wrapper/source/templates/debian
+wrapper-source/templates/debian/postinst.tpl  usr/share/singularity-wrapper/source/templates/debian
+wrapper-source/templates/exe_wrapper.sh.tpl   usr/share/singularity-wrapper/source/templates
+wrapper-source/templates/image_desc.tpl       usr/share/singularity-wrapper/source/templates

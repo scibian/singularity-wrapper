@@ -1,0 +1,12 @@
+1a40f5b65d838d1e56fc8d3e54f486dc  usr/sbin/singularity-wrapper
+5bd6134ed37afa0e4dba13c86e4541da  usr/share/doc/singularity-wrapper/changelog.gz
+96bc72ed7c2b810ab007eb971118fe2b  usr/share/doc/singularity-wrapper/copyright
+7c5aba41f53293b712fd86d08ed5b36e  usr/share/singularity-wrapper/source/files/debian/compat
+61ec6f8107dfa7647752564f808b26e1  usr/share/singularity-wrapper/source/files/debian/rules
+c5fc031a250b2d76fe051ac3621620ab  usr/share/singularity-wrapper/source/files/debian/source/format
+6160ecd41e909b2202d238e556882517  usr/share/singularity-wrapper/source/templates/debian/changelog.tpl
+24ed4d7a74ab2bc549ba0076f538581b  usr/share/singularity-wrapper/source/templates/debian/control.tpl
+e8be28d38d03b28fb9a07f1cedb15b20  usr/share/singularity-wrapper/source/templates/debian/copyright.tpl
+8f8d7e167e26fdd62cc080a701d495b4  usr/share/singularity-wrapper/source/templates/debian/postinst.tpl
+445b9601271a14335bd752d8bce9e1e6  usr/share/singularity-wrapper/source/templates/exe_wrapper.sh.tpl
+1a961eea2626188a520fe8f59ae396ac  usr/share/singularity-wrapper/source/templates/image_desc.tpl
