@@ -84,6 +84,7 @@ class AppConf():
 
         self.repos = None
 
+        self.withSlurm = None
         self.oneImage = None
         self.extraPackages = None
 
@@ -486,6 +487,10 @@ class Wrapper():
         if conf.extraPackages :
             packages_names +=', '+', '.join(x for x in conf.extraPackages)
             print(packages_names)
+        # Add slurm-client package
+        self.context['withSlurm'] = conf.withSlurm
+        if conf.withSlurm :
+            packages_names +=', slurm-client'
 
         app_exe = ', '.join(str(x.app_exe) for x in self.srcPackages)
         self.context['package_orig_name'] = packages_names
@@ -768,6 +773,11 @@ def parse_args():
                         help='Wrappe packages to one image',
 			            dest='oneImage',
                         action='store_true')
+                        
+    parser.add_argument('--with-slurm',
+                        help='Add slurm user to singularity recipe file',
+                        dest='withSlurm',
+                        action='store_true')
 
     parser.add_argument('-c', '--conf',
                         help='Path to the configuration file',
@@ -807,6 +817,8 @@ def parse_args():
         conf.conf_file = args.conf
     if args.oneImage:
         conf.oneImage = True
+    if args.withSlurm:
+        conf.withSlurm = True
 
     return args
 
