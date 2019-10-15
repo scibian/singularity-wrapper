@@ -18,9 +18,9 @@ set -e
 
 case "$1" in
     configure)
-        if ! [ -f "{{ app_path }}/{{ package_dist }}_{{ package_orig_name }}.img" ]
+        if ! [ -f "{{ app_path }}/{{ package_dist }}_{{ main_name }}.img" ]
         then
-            singularity-wrapper image-build {{ package_orig_name }} > /var/log/{{ package_name }}_build_image.log 2>&1 
+            singularity-wrapper image-build {{ main_name }} > /var/log/{{ package_name }}_build_image.log 2>&1 
         fi
     ;;
 
