@@ -85,6 +85,7 @@ class AppConf():
         self.repos = None
 
         self.oneImage = None
+        self.extraPackages = None
 
     def dump(self):
         logger.debug("runtime configuration dump:")
@@ -481,6 +482,10 @@ class Wrapper():
             app_path, "%s_%s.img" % (dist, main_name)
         )
         packages_names = ', '.join(x.package_name for x in self.srcPackages)
+        # Add extra packages to singularity image
+        if conf.extraPackages :
+            packages_names +=', '+', '.join(x for x in conf.extraPackages)
+            print(packages_names)
 
         app_exe = ', '.join(str(x.app_exe) for x in self.srcPackages)
         self.context['package_orig_name'] = packages_names
@@ -763,7 +768,7 @@ def parse_args():
                         help='Wrappe packages to one image',
 			            dest='oneImage',
                         action='store_true')
-                        
+
     parser.add_argument('-c', '--conf',
                         help='Path to the configuration file',
                         nargs='?',
@@ -789,8 +794,13 @@ def parse_args():
                         nargs='*',
                         default=[])
     
+    parser.add_argument('--extra-packages',
+                        nargs='*',
+                        help='Add extra packages to image')
+    
  
     args = parser.parse_args()
+    conf.extraPackages = args.extra_packages
     if args.debug:
         conf.debug = True
     if args.conf:
