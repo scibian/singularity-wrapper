@@ -23,6 +23,7 @@
 # <http://www.gnu.org/licenses/>.
 IMAGE_PATH={{ image_path }}
 EXE_PATH={{ exe_path }}
+WITH_SLURM={{ withSlurm }}
 
 if [ ! -f "${IMAGE_PATH}" ] && [ ! -d "${IMAGE_PATH}" ]
 then
@@ -38,6 +39,10 @@ opengl_vendor=$( (LANG=C glxinfo | sed -n "s/^OpenGL vendor string: \(.*\)/\1/;T
 if [[ "${opengl_vendor}" == "NVIDIA Corporation" ]]
 then
   singularity_params+=( '--nv' )
+fi
+if [[ "${WITH_SLURM}" == True ]]
+then
+  export SINGULARITY_BINDPATH="/run/munge,/etc/slurm-llnl"
 fi
 
 base_command=( "${EXE_PATH}" )
