@@ -84,6 +84,8 @@ class AppConf():
 
         self.repos = None
 
+        self.oneImage = None
+
     def dump(self):
         logger.debug("runtime configuration dump:")
         logger.debug("- action: %s", str(self.action))
@@ -433,38 +435,64 @@ class BinaryPackage():
     def get_member_content(self, member_name):
         return self.debfile.data.extractdata(member_name)
 
+class SrcPackage():
+	
+	def __init__(self, package):
+		self.context = {}
+		self.pkg = package['package']
+		self.context['package_maintainer'] = conf.wrapper_maintainer
+		self.package_name = self.pkg.name
+		self.package_dist = package['source_dist']
+		self.context['package_date'] = email.utils.formatdate()
+		self.version = self.pkg.version
+		self.context['package_orig_name'] = self.pkg.name
+		self.context['package_orig_version'] = self.pkg.version
+		app_path = self.pkg.get_app_path()
+		if app_path is None:
+			# There is no application path, we make our own
+			if self.pkg.name.find('-') >= 0:
+				[base_name, version] = self.pkg.name.rsplit('-', 1)
+				app_path = "/opt/%s/%s/" % (base_name, version)
+			else:
+				app_path = "/opt/%s" % self.pkg.name
+		self.app_path = app_path
+		self.app_exe = self.pkg.get_app_exe()
+
 
 class Wrapper():
 
-    def __init__(self, package, dist):
-        self.package = package
-        self.name = 'singularity-wrapper-%s' % self.package.name
+    def __init__(self, packages):
+        self.srcPackages = []
+        for pkg in packages.values():
+            self.srcPackages.append(SrcPackage(pkg))
+        main_name = self.srcPackages[0].pkg.name
+        self.name = 'singularity-wrapper-%s' % main_name
         self.context = {}
-        self.context['package_maintainer'] = conf.wrapper_maintainer
-        self.context['package_name'] = self.name
-        self.context['package_dist'] = dist
-        self.context['package_date'] = email.utils.formatdate()
-        self.context['package_version'] = self.package.version
-        self.context['package_orig_name'] = self.package.name
-        self.context['package_orig_version'] = self.package.version
         self.context['singularity_wrapper_version'] = VERSION
-        app_path = self.package.get_app_path()
-        if app_path is None:
-            # There is no application path, we make our own
-            if self.package.name.find('-') >= 0:
-                [base_name, version] = self.package.name.rsplit('-', 1)
-                app_path = "/opt/%s/%s/" % (base_name, version)
-            else:
-                app_path = "/opt/%s" % self.package.name
-        self.context['app_path'] = app_path
-        self.context['app_exe'] = self.package.get_app_exe()
+        self.context['main_name'] = main_name
+        self.context['package_date'] = email.utils.formatdate()
+        #instantiate list of packages
+        self.image_desc = self.srcPackages[0].package_name
+        app_path = self.srcPackages[0].app_path
+        self.context['app_path'] = 	app_path
+        dist = self.srcPackages[0].package_dist
+        self.context['package_dist'] = dist 
         self.context['image_path'] = os.path.join(
-            app_path, "%s_%s.img" % (dist, self.package.name)
+            app_path, "%s_%s.img" % (dist, main_name)
         )
+        packages_names = ', '.join(x.package_name for x in self.srcPackages)
+
+        app_exe = ', '.join(str(x.app_exe) for x in self.srcPackages)
+        self.context['package_orig_name'] = packages_names
+        self.context['package_version'] = self.srcPackages[0].version
+        self.context['package_name'] = self.name
+        self.context['app_exe'] = app_exe
+        self.context['package_maintainer'] = conf.wrapper_maintainer
         template_dir = os.path.join(conf.wrapper_source_dir, 'templates')
         self.jinja2_env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(template_dir)
         )
+
 
     def _build_create_workdir(self):
         # Create temp dir
@@ -498,13 +526,12 @@ class Wrapper():
             self.jinja2_env, 'debian/postinst.tpl', self.context, dest_path
         )
         # Template: image_desc
-        desc_filename = self.package.name
-        dest_path = os.path.join(source_dir, desc_filename)
+        dest_path = os.path.join(source_dir, self.image_desc)
         write_rendered_template(
             self.jinja2_env, 'image_desc.tpl', self.context, dest_path
         )
         self._build_add_file(workdir,
-                             desc_filename,
+                             self.image_desc,
                              'usr/share/singularity-wrapper/images')
         # Add directory file
         dir_path = self.context['app_path'][1:]
@@ -547,29 +574,31 @@ class Wrapper():
 
     def _build_wrap_usr_bin(self, workdir):
         logger.debug("Wrapping files in /usr/bin")
-        members = self.package.get_member_names("usr/bin/")
-        for member_name in members:
-            if member_name[-1:] == '/':
-                # Directory, moving on
-                continue
-            target = self.package.get_member_sym_target(member_name)
-            exe_path = "/%s" % member_name
-            if target is not None and not target.startswith('/opt'):
-                # Symlink to another file outside of /opt
-                # link should work the same
-                if not self.package.is_member(target[1:]):
-                    logger.warning(
-                        "Target of symlink %s outside the package (%s).",
-                        member_name, target
-                    )
-                self._build_add_symlink(workdir, exe_path, target)
-            else:
-                # If it is not a symlink or if the link points to
-                # a file in /opt, create an exe wrapper
-                self._build_wrap_add_exe_wrapper(workdir, exe_path, exe_path)
+        for package in self.srcPackages:
+            pkg = package.pkg
+            members = pkg.get_member_names("usr/bin/")
+            for member_name in members:
+                if member_name[-1:] == '/':
+                    # Directory, moving on
+                    continue
+                target = pkg.get_member_sym_target(member_name)
+                exe_path = "/%s" % member_name
+                if target is not None and not target.startswith('/opt'):
+                    # Symlink to another file outside of /opt
+                    # link should work the same
+                    if not pkg.is_member(target[1:]):
+                        logger.warning(
+                            "Target of symlink %s outside the package (%s).",
+                            member_name, target
+                        )
+                    self._build_add_symlink(workdir, exe_path, target)
+                else:
+                    # If it is not a symlink or if the link points to
+                    # a file in /opt, create an exe wrapper
+                    self._build_wrap_add_exe_wrapper(workdir, exe_path, exe_path)
 
-    def _build_wrap_add_other_file(self, workdir, path, source_member):
-        content = self.package.get_member_content(source_member)
+    def _build_wrap_add_other_file(self, pkg, workdir, path, source_member):
+        content = pkg.get_member_content(source_member)
         dest_path = os.path.join(workdir, 'source', path[1:])
         self._build_create_parent_dir(workdir, path[1:])
         open(dest_path, 'wb').write(content)
@@ -584,30 +613,32 @@ class Wrapper():
         # Note about doc files: calibre EDC copy only copyright and
         # README files, we don't sort that way because its simpler
         # and more comprehensive.
-        members = self.package.get_member_names("usr/share/")
-        for member_name in members:
-            if member_name[-1:] == '/':
-                # Directory,  moving on
-                continue
-            target = self.package.get_member_sym_target(member_name)
-            file_path = "/%s" % member_name
-            if target is None:
-                # If it is not a symlink
-                self._build_wrap_add_other_file(workdir, file_path, member_name)
-            elif not target.startswith('/opt'):
-                # Symlink to another file outside of /opt
-                # link should work the same
-                if not self.package.is_member(target[1:]):
-                    logger.warning(
-                        "Target of symlink %s outside the package (%s).",
-                        member_name, target
+        for package in self.srcPackages:
+            pkg = package.pkg
+            members = pkg.get_member_names("usr/share/")
+            for member_name in members:
+                if member_name[-1:] == '/':
+                    # Directory,  moving on
+                    continue
+                target = pkg.get_member_sym_target(member_name)
+                file_path = "/%s" % member_name
+                if target is None:
+                    # If it is not a symlink
+                    self._build_wrap_add_other_file(pkg, workdir, file_path, member_name)
+                elif not target.startswith('/opt'):
+                    # Symlink to another file outside of /opt
+                    # link should work the same
+                    if not self.package.is_member(target[1:]):
+                        logger.warning(
+                            "Target of symlink %s outside the package (%s).",
+                            member_name, target
+                        )
+                    self._build_add_symlink(workdir, file_path, target)
+                else:
+                    # Symlink into /opt
+                    self._build_wrap_add_other_file(
+                        workdir, file_path, target[1:]
                     )
-                self._build_add_symlink(workdir, file_path, target)
-            else:
-                # Symlink into /opt
-                self._build_wrap_add_other_file(
-                    workdir, file_path, target[1:]
-                )
 
     def _build_wrap(self, workdir):
         self._build_wrap_usr_bin(workdir)
@@ -630,9 +661,9 @@ class Wrapper():
 
     def _build_write(self, workdir):
         logger.debug("Writing result package")
-        package_name = "%s_%s_all.deb" % (self.name, self.package.version)
-        changes_name = "%s_%s_amd64.changes" % (self.name, self.package.version)
-
+        version = self.srcPackages[0].pkg.version
+        package_name = "%s_%s_all.deb" % (self.name, version)
+        changes_name = "%s_%s_amd64.changes" % (self.name, version)
         for file_name in [package_name, changes_name]:
             source_path = os.path.join(workdir, file_name)
             if os.path.exists(file_name):
@@ -728,6 +759,11 @@ def parse_args():
                         help='Enable debug mode',
                         action='store_true')
 
+    parser.add_argument('-I', '--one-image',
+                        help='Wrappe packages to one image',
+			            dest='oneImage',
+                        action='store_true')
+                        
     parser.add_argument('-c', '--conf',
                         help='Path to the configuration file',
                         nargs='?',
@@ -752,13 +788,15 @@ def parse_args():
                         help='List of targets for the action',
                         nargs='*',
                         default=[])
-
+    
+ 
     args = parser.parse_args()
-
     if args.debug:
         conf.debug = True
     if args.conf:
         conf.conf_file = args.conf
+    if args.oneImage:
+        conf.oneImage = True
 
     return args
 
@@ -928,12 +966,21 @@ def action_wrapper_create(targets=None, default_dist=None, filter_dist=None):
 
     if len(packages) < 1:
         logger.warning("No matching package to wrap.")
-
-    for package in packages.values():
-        wrapper = Wrapper(package['package'], dist=package['source_dist'])
+    
+    if conf.oneImage:
+        wrapper = Wrapper(packages)
         wrapper.build()
-        if package['package'].name in to_clean:
-            os.remove(package['package'].realpath)
+    else:
+        pkgs = [{k:v} for k,v in packages.items()]
+        length = len(pkgs)
+        for i in range(length):
+            wrapper = Wrapper(pkgs[i])
+            wrapper.build()
+        
+		
+    for pkg in packages.values():
+        if (pkg['package'].name) in to_clean:
+	        os.remove(pkg['package'].realpath)
 
 
 def action_image_list(targets=None):
@@ -971,7 +1018,7 @@ def main():
         filter_dist = None
 
     targets = parse_targets(args)
-
+    
     if args.action == 'wrapper-create':
         action_wrapper_create(targets, default_dist, filter_dist)
     elif args.action == 'image-list':
