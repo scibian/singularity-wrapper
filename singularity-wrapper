@@ -87,6 +87,7 @@ class AppConf():
         self.with_slurm = None
         self.one_image = None
         self.extra_packages = None
+        self.embed_image = None
 
     def dump(self):
         logger.debug("runtime configuration dump:")
@@ -172,10 +173,14 @@ class Image():
         self.refresh_state()
 
     def _build_create_workdir(self):
-        # Create temp dir
-        workdir = tempfile.mkdtemp(
-            prefix='singularity_wrapper_img_build_%s' % self.name
-        )
+        if conf.embed_image:
+            # Use current directory as work directory
+            workdir = os.getcwd()
+        else:
+            # Create temp dir to use a work directory
+            workdir = tempfile.mkdtemp(
+                prefix='singularity_wrapper_img_build_%s' % self.name
+            )
         # Create recipe
         tpl_name = Template(conf.recipes_tpl_name).substitute(dist=self.dist)
         tpl_filename = "%s.def.tpl" % tpl_name
@@ -491,7 +496,9 @@ class Wrapper():
         self.context['with_slurm'] = conf.with_slurm
         if conf.with_slurm:
             packages_names += ', slurm-client'
-
+        # Configuration file is needed for rules template
+        # when using embed-image option
+        self.context['conf_file'] = conf.conf_file
         app_exe = ', '.join(str(x.app_exe) for x in self.srcPackages)
         self.context['package_orig_name'] = packages_names
         self.context['package_version'] = self.srcPackages[0].version
@@ -531,9 +538,15 @@ class Wrapper():
             self.jinja2_env, 'debian/copyright.tpl', self.context, dest_path
         )
         # Template: postinst
-        dest_path = os.path.join(source_dir, 'debian/postinst')
+        if not self.context['embed_image']:
+            dest_path = os.path.join(source_dir, 'debian/postinst')
+            write_rendered_template(
+                self.jinja2_env, 'debian/postinst.tpl', self.context, dest_path
+            )
+        # Template: rules
+        dest_path = os.path.join(source_dir, 'debian/rules')
         write_rendered_template(
-            self.jinja2_env, 'debian/postinst.tpl', self.context, dest_path
+            self.jinja2_env, 'debian/rules.tpl', self.context, dest_path
         )
         # Template: image_desc
         dest_path = os.path.join(source_dir, self.image_desc)
@@ -725,7 +738,9 @@ def parse_conf():
     conf.global_skip_clean = parser.getboolean('global', 'skip_clean')
     conf.global_ssl_ca_crt = parser.get('global', 'ssl_ca_crt')
     conf.images_desc_dir = parser.get('images', 'desc_dir')
-    conf.images_build_root = parser.get('images', 'build_root')
+    # Do not override images_build_root if already set by cli argument
+    if not conf.images_build_root:
+        conf.images_build_root = parser.get('images', 'build_root')
     conf.recipes_dir = parser.get('recipes', 'dir')
     conf.recipes_tpl_name = parser.get('recipes', 'tpl_name')
     conf.recipes_ssl_crt = parser.get('recipes', 'ssl_crt')
@@ -815,10 +830,14 @@ def parse_args():
         conf.debug = True
     if args.conf:
         conf.conf_file = args.conf
+    if args.imagesBuildRoot:
+        conf.images_build_root = args.imagesBuildRoot
     if args.one_image:
         conf.one_image = True
     if args.with_slurm:
         conf.with_slurm = True
+    if args.embed_image:
+        conf.embed_image = True
 
     return args
 
@@ -887,14 +906,14 @@ def robust_rmtree(path):
             time.sleep(i)
 
 
-def get_image_descs():
-    dir_content = os.listdir(conf.images_desc_dir)
+def get_image_descs(desc_dir):
+    dir_content = os.listdir(desc_dir)
     image_descs = {}
     for element in dir_content:
         # ignore hidden files
         if element.startswith("."):
             continue
-        file_path = os.path.join(conf.images_desc_dir, element)
+        file_path = os.path.join(desc_dir, element)
         if not os.path.isfile(file_path):
             continue
         logger.debug("Creating image description for %s", element)
@@ -910,8 +929,8 @@ def parse_targets(args):
     return targets
 
 
-def get_images(targets=None):
-    images_desc = get_image_descs()
+def get_images(desc_dir, targets=None):
+    images_desc = get_image_descs(desc_dir)
     images = {}
     for name, desc in images_desc.items():
         if targets is not None and name not in targets:
@@ -1008,7 +1027,7 @@ def action_wrapper_create(targets=None, default_dist=None, filter_dist=None):
 def action_image_list(targets=None):
     if targets is not None and len(targets) == 0:
         targets = None
-    images = get_images(targets)
+    images = get_images(conf.images_desc_dir, targets)
     for name, img in images.items():
         print("%s, Status:%s, Path:%s, Packages:%s" % (
             name,
@@ -1019,7 +1038,12 @@ def action_image_list(targets=None):
 
 
 def action_image_build(targets=None):
-    images = get_images(targets)
+    if conf.embed_image :
+        # Get image from package building directory
+        images = get_images(os.path.join('debian', 'singularity-wrapper-'+targets[0],
+                                         'usr/share/singularity-wrapper/images'), targets)
+    else:
+        images = get_images(conf.images_desc_dir, targets)
     for image in images.values():
         image.build()
 
