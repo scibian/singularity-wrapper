@@ -84,9 +84,9 @@ class AppConf():
 
         self.repos = None
 
-        self.withSlurm = None
-        self.oneImage = None
-        self.extraPackages = None
+        self.with_slurm = None
+        self.one_image = None
+        self.extra_packages = None
 
     def dump(self):
         logger.debug("runtime configuration dump:")
@@ -212,7 +212,7 @@ class Image():
                            conf.recipes_ssl_crt)
         if os.access(conf.recipes_ssl_key, os.R_OK):
             logger.debug("Copying SSL key from %s to %s." % (
-                         conf.recipes_ssl_key, dst_key_path))
+                conf.recipes_ssl_key, dst_key_path))
             shutil.copy2(conf.recipes_ssl_key, dst_key_path)
         else:
             logger.warning("SSL Key is not readable: %s.",
@@ -438,27 +438,27 @@ class BinaryPackage():
         return self.debfile.data.extractdata(member_name)
 
 class SrcPackage():
-	
-	def __init__(self, package):
-		self.context = {}
-		self.pkg = package['package']
-		self.context['package_maintainer'] = conf.wrapper_maintainer
-		self.package_name = self.pkg.name
-		self.package_dist = package['source_dist']
-		self.context['package_date'] = email.utils.formatdate()
-		self.version = self.pkg.version
-		self.context['package_orig_name'] = self.pkg.name
-		self.context['package_orig_version'] = self.pkg.version
-		app_path = self.pkg.get_app_path()
-		if app_path is None:
-			# There is no application path, we make our own
-			if self.pkg.name.find('-') >= 0:
-				[base_name, version] = self.pkg.name.rsplit('-', 1)
-				app_path = "/opt/%s/%s/" % (base_name, version)
-			else:
-				app_path = "/opt/%s" % self.pkg.name
-		self.app_path = app_path
-		self.app_exe = self.pkg.get_app_exe()
+
+    def __init__(self, package):
+        self.context = {}
+        self.pkg = package['package']
+        self.context['package_maintainer'] = conf.wrapper_maintainer
+        self.package_name = self.pkg.name
+        self.package_dist = package['source_dist']
+        self.context['package_date'] = email.utils.formatdate()
+        self.version = self.pkg.version
+        self.context['package_orig_name'] = self.pkg.name
+        self.context['package_orig_version'] = self.pkg.version
+        app_path = self.pkg.get_app_path()
+        if app_path is None:
+            # There is no application path, we make our own
+            if self.pkg.name.find('-') >= 0:
+                [base_name, version] = self.pkg.name.rsplit('-', 1)
+                app_path = "/opt/%s/%s/" % (base_name, version)
+            else:
+                app_path = "/opt/%s" % self.pkg.name
+        self.app_path = app_path
+        self.app_exe = self.pkg.get_app_exe()
 
 
 class Wrapper():
@@ -476,21 +476,21 @@ class Wrapper():
         #instantiate list of packages
         self.image_desc = self.srcPackages[0].package_name
         app_path = self.srcPackages[0].app_path
-        self.context['app_path'] = 	app_path
+        self.context['app_path'] = app_path
         dist = self.srcPackages[0].package_dist
-        self.context['package_dist'] = dist 
+        self.context['package_dist'] = dist
         self.context['image_path'] = os.path.join(
             app_path, "%s_%s.img" % (dist, main_name)
         )
         packages_names = ', '.join(x.package_name for x in self.srcPackages)
         # Add extra packages to singularity image
-        if conf.extraPackages :
-            packages_names +=', '+', '.join(x for x in conf.extraPackages)
+        if conf.extra_packages:
+            packages_names += ', '+', '.join(x for x in conf.extra_packages)
             print(packages_names)
         # Add slurm-client package
-        self.context['withSlurm'] = conf.withSlurm
-        if conf.withSlurm :
-            packages_names +=', slurm-client'
+        self.context['with_slurm'] = conf.with_slurm
+        if conf.with_slurm:
+            packages_names += ', slurm-client'
 
         app_exe = ', '.join(str(x.app_exe) for x in self.srcPackages)
         self.context['package_orig_name'] = packages_names
@@ -771,12 +771,12 @@ def parse_args():
 
     parser.add_argument('-I', '--one-image',
                         help='Wrappe packages to one image',
-			            dest='oneImage',
+                        dest='one_image',
                         action='store_true')
-                        
+
     parser.add_argument('--with-slurm',
                         help='Add slurm user to singularity recipe file',
-                        dest='withSlurm',
+                        dest='with_slurm',
                         action='store_true')
 
     parser.add_argument('-c', '--conf',
@@ -803,22 +803,22 @@ def parse_args():
                         help='List of targets for the action',
                         nargs='*',
                         default=[])
-    
+
     parser.add_argument('--extra-packages',
                         nargs='*',
                         help='Add extra packages to image')
-    
- 
+
+
     args = parser.parse_args()
-    conf.extraPackages = args.extra_packages
+    conf.extra_packages = args.extra_packages
     if args.debug:
         conf.debug = True
     if args.conf:
         conf.conf_file = args.conf
-    if args.oneImage:
-        conf.oneImage = True
-    if args.withSlurm:
-        conf.withSlurm = True
+    if args.one_image:
+        conf.one_image = True
+    if args.with_slurm:
+        conf.with_slurm = True
 
     return args
 
@@ -988,21 +988,21 @@ def action_wrapper_create(targets=None, default_dist=None, filter_dist=None):
 
     if len(packages) < 1:
         logger.warning("No matching package to wrap.")
-    
-    if conf.oneImage:
+
+    if conf.one_image:
         wrapper = Wrapper(packages)
         wrapper.build()
     else:
-        pkgs = [{k:v} for k,v in packages.items()]
+        pkgs = [{k:v} for k, v in packages.items()]
         length = len(pkgs)
         for i in range(length):
             wrapper = Wrapper(pkgs[i])
             wrapper.build()
-        
-		
+
+
     for pkg in packages.values():
-        if (pkg['package'].name) in to_clean:
-	        os.remove(pkg['package'].realpath)
+        if pkg['package'].name in to_clean:
+            os.remove(pkg['package'].realpath)
 
 
 def action_image_list(targets=None):
@@ -1011,11 +1011,11 @@ def action_image_list(targets=None):
     images = get_images(targets)
     for name, img in images.items():
         print("%s, Status:%s, Path:%s, Packages:%s" % (
-              name,
-              Image.get_status_string(img.status),
-              img.path,
-              ';'.join(img.desc.app_packages)
-              ))
+            name,
+            Image.get_status_string(img.status),
+            img.path,
+            ';'.join(img.desc.app_packages)
+        ))
 
 
 def action_image_build(targets=None):
@@ -1040,7 +1040,7 @@ def main():
         filter_dist = None
 
     targets = parse_targets(args)
-    
+
     if args.action == 'wrapper-create':
         action_wrapper_create(targets, default_dist, filter_dist)
     elif args.action == 'image-list':
